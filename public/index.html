@@ -1,136 +1,38 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>YouTube AI Tag Analyzer</title>
+<meta charset="UTF-8">
+<title>YouTube Tag Analyzer (Gemini 2.0)</title>
 <style>
-  body { font-family: Inter, system-ui, Arial; background:#0f1720; color:#e6eef8; max-width:920px; margin:28px auto; padding:20px; }
-  h1 { text-align:center; color:#ff6b6b; }
-  .card { background:#0b1220; border:1px solid #122233; padding:16px; border-radius:8px; margin-bottom:12px; }
-  input, textarea { width:100%; padding:10px; border-radius:8px; border:1px solid #233244; background:#071021; color:#e6eef8; }
-  button { background:#ff6b6b; color:#fff; border:none; padding:10px 14px; border-radius:8px; cursor:pointer; }
-  .row { display:flex; gap:8px; }
-  .tag { display:inline-block; padding:8px 10px; background:#091827; border-radius:999px; margin:6px; border:1px solid #1f2b3a; }
-  .bar { height:10px; background:#122233; border-radius:6px; overflow:hidden; margin-top:6px; }
-  .bar > i { display:block; height:100%; background:#3b82f6; }
-  .small { font-size:13px; color:#9fb0c8; }
-  .actions { margin-top:10px; display:flex; gap:8px; }
-  .green { background:#10b981; color:#021010; padding:6px 10px; border-radius:6px; border:none; cursor:pointer; }
-  .csv { background:#3b82f6; color:#021027; padding:6px 10px; border-radius:6px; border:none; cursor:pointer; }
-  .loader { width:18px; height:18px; border:3px solid rgba(255,255,255,0.2); border-top-color:#ff6b6b; border-radius:50%; display:inline-block; animation:spin 1s linear infinite; }
-  @keyframes spin { to { transform: rotate(360deg); } }
+body{font-family:Poppins,sans-serif;background:#0f1720;color:#fff;max-width:800px;margin:auto;padding:20px}
+h1{text-align:center;color:#ff6b6b}
+textarea,input,button{width:100%;padding:10px;margin-top:10px;border:none;border-radius:8px}
+textarea,input{background:#1a2639;color:#fff}
+button{background:#ff6b6b;color:#fff;cursor:pointer}
+.tag{display:inline-block;background:#1c2d46;padding:5px 10px;margin:4px;border-radius:8px}
 </style>
 </head>
 <body>
-  <h1>🎯 YouTube AI Tag Analyzer (Pro)</h1>
-
-  <div class="card">
-    <label class="small">Video Title</label>
-    <input id="title" placeholder="Enter video title (or paste video title here)">
-    <label class="small" style="margin-top:8px">Video Description (optional)</label>
-    <textarea id="desc" rows="5" placeholder="Paste the video description or key points..."></textarea>
-
-    <div class="actions">
-      <button id="analyzeBtn">Analyze & Generate Tags</button>
-      <button id="copyAll" class="green">Copy All Tags</button>
-      <button id="exportCsv" class="csv">Export CSV</button>
-      <div id="status" style="align-self:center;margin-left:6px"></div>
-    </div>
-  </div>
-
-  <div id="results"></div>
-
+<h1>🎯 YouTube Tag Analyzer (Gemini 2.0 Flash)</h1>
+<input id="title" placeholder="Enter video title">
+<textarea id="desc" rows="5" placeholder="Enter video description..."></textarea>
+<button onclick="analyze()">Analyze</button>
+<div id="out"></div>
 <script>
-async function analyze() {
-  const title = document.getElementById('title').value.trim();
-  const desc = document.getElementById('desc').value.trim();
-  const status = document.getElementById('status');
-  const results = document.getElementById('results');
-  results.innerHTML = '';
-  if (!title && !desc) { alert('Enter title or description'); return; }
-
-  document.getElementById('analyzeBtn').disabled = true;
-  status.innerHTML = '<span class="loader"></span> Analyzing...';
-
-  try {
-    const resp = await fetch('/api/analyze', {
-      method: 'POST',
-      headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ title, description: desc })
-    });
-    const data = await resp.json();
-    if (data.error) {
-      results.innerHTML = `<div class="card">Error: ${data.error}</div>`;
-      console.error(data);
-      return;
-    }
-
-    // Build UI
-    const meta = data.generated_from || {};
-    let html = `<div class="card"><strong>Generated from</strong><div class="small">title: ${meta.title||''}</div><div class="small">desc snippet: ${meta.description_snippet||''}</div></div>`;
-    html += `<div class="card"><strong>Tags (${(data.tags||[]).length})</strong>`;
-    html += '<div style="margin-top:10px">';
-
-    (data.tags||[]).forEach(t=>{
-      const tag = t.tag || '';
-      const rel = Number(t.relevance_score)||0;
-      const vol = t.search_volume_monthly_est || '';
-      const ui = Number(t.user_interest_percent)||0;
-
-      html += `<div style="margin-bottom:12px">
-        <div style="display:flex;justify-content:space-between;align-items:center">
-          <div><span class="tag">${tag}</span> <span class="small">${vol ? '· ' + vol : ''}</span></div>
-          <div class="small">Rel: ${rel}% · Interest: ${ui}%</div>
-        </div>
-        <div class="bar"><i style="width:${Math.min(100,rel)}%"></i></div>
-        <div class="small" style="margin-top:4px">User interest (CTR est): <span style="font-weight:600">${ui}%</span></div>
-      </div>`;
-    });
-
-    html += '</div></div>';
-    results.innerHTML = html;
-
-  } catch (err) {
-    console.error(err);
-    results.innerHTML = `<div class="card">Request failed: ${err.message}</div>`;
-  } finally {
-    document.getElementById('analyzeBtn').disabled = false;
-    status.innerHTML = '';
+async function analyze(){
+  const title=document.getElementById("title").value;
+  const desc=document.getElementById("desc").value;
+  const out=document.getElementById("out");
+  out.innerHTML="⏳ Analyzing...";
+  try{
+    const res=await fetch("/api/analyze",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({title,description:desc})});
+    const data=await res.json();
+    if(data.error){out.innerHTML="❌ "+data.error;return;}
+    out.innerHTML=data.tags ? data.tags.map(t=>`<div class='tag'>${t.tag} (${t.relevance_score}%)</div>`).join("") : `<pre>${JSON.stringify(data,null,2)}</pre>`;
+  }catch(e){
+    out.innerHTML="⚠️ Server Error: "+e.message;
   }
 }
-
-document.getElementById('analyzeBtn').addEventListener('click', analyze);
-
-document.getElementById('copyAll').addEventListener('click', () => {
-  const tags = Array.from(document.querySelectorAll('.tag')).map(el=>el.textContent).join(', ');
-  if (!tags) return alert('Generate tags first');
-  navigator.clipboard.writeText(tags);
-  alert('✅ Tags copied');
-});
-
-document.getElementById('exportCsv').addEventListener('click', () => {
-  const rows = [['tag','relevance','search_volume_est','user_interest_percent']];
-  Array.from(document.querySelectorAll('#results .card')).forEach(card=>{
-    // skip meta card; we will parse tags from displayed blocks
-  });
-  // instead parse from results DOM
-  const tagBlocks = document.querySelectorAll('#results .tag');
-  if (!tagBlocks.length) { alert('Generate tags first'); return; }
-  tagBlocks.forEach(tagEl=>{
-    const tag = tagEl.textContent;
-    // find its parent card block and extract numbers
-    const parent = tagEl.closest('div[style]');
-    // fallback simple: push tag only
-    rows.push([tag,'','','']);
-  });
-  const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\\n');
-  const blob = new Blob([csv], { type: 'text/csv' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = 'tags.csv';
-  a.click();
-});
 </script>
 </body>
 </html>
