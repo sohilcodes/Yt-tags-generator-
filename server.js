@@ -1,40 +1,47 @@
-// server.js
-require('dotenv').config();
-const express = require('express');
-const axios = require('axios');
-const cors = require('cors');
-
+require("dotenv").config();
+const express = require("express");
+const axios = require("axios");
+const cors = require("cors");
 const app = express();
+
 app.use(express.json());
 app.use(cors());
-app.use(express.static('public'));
+app.use(express.static("public"));
 
+const GEMINI_KEY = process.env.GEMINI_API_KEY;
 const PORT = process.env.PORT || 3000;
-const OPENAI_KEY = process.env.OPENAI_API_KEY;
-if (!OPENAI_KEY) console.warn('OPENAI_API_KEY not set in .env');
 
-const OPENAI_URL = 'https://api.openai.com/v1/chat/completions';
-const MODEL = 'gpt-4o-mini'; // change if you prefer another model
+app.post("/api/analyze", async (req, res) => {
+  const { title, description } = req.body;
 
-// helper: build a precise JSON-only prompt so model returns well-formed JSON
-function buildPrompt(title, description) {
-  const combined = (title || '') + '\n\n' + (description || '');
-  return `You are an expert YouTube SEO assistant. Based on the following video title and description, produce a JSON array of up to 25 suggested tags (short keywords or short phrases).
-Return ONLY valid JSON (no extra explanation). The JSON must be exactly:
-
+  const prompt = `
+You are a YouTube SEO expert. Suggest 10 high-ranking tags for this video.
+Return JSON like this:
 {
-  "source":"AI_Estimate",
-  "generated_from": { "title": "...", "description_snippet": "..." },
-  "tags": [
-    { "tag": "...",
-      "relevance_score": 0-100,         // integer, how strongly this tag matches content
-      "search_volume_monthly_est": "...", // AI estimate, e.g., \"~12000\" or \"~5k-10k\"
-      "user_interest_percent": 0-100    // integer percent estimate of CTR/engagement
-    },
-    ...
-  ]
+ "tags":[
+  {"tag":"keyword","relevance_score":0-100,"search_volume":"~5k","user_interest_percent":0-100}
+ ]
 }
+Title: ${title}
+Description: ${description}
+`;
 
+  try {
+    const r = await axios.post(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_KEY}`,
+      { contents: [{ parts: [{ text: prompt }] }] }
+    );
+    const text = r.data.candidates?.[0]?.content?.parts?.[0]?.text || "[]";
+    let data;
+    try { data = JSON.parse(text); } catch { data = { raw: text }; }
+    res.json(data);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).json({ error: "Gemini API error", details: err.message });
+  }
+});
+
+app.listen(PORT, () => console.log(`🚀 Gemini Server running on ${PORT}`));
 Rules:
 1. Give at most 25 tags.
 2. Keep tag strings short (1-4 words), lowercase preferred.
