@@ -1,5 +1,3 @@
-// === YouTube Tag Analyzer using Gemini API ===
-// Compatible with Render, Glitch, Replit
 require("dotenv").config();
 const express = require("express");
 const axios = require("axios");
@@ -13,52 +11,38 @@ app.use(express.static("public"));
 const PORT = process.env.PORT || 3000;
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
-// --- ROUTE ---
 app.post("/api/analyze", async (req, res) => {
   try {
     const { title, description } = req.body;
-    if (!GEMINI_API_KEY)
-      return res.status(400).json({ error: "Missing Gemini API key" });
+    if (!GEMINI_API_KEY) return res.status(400).json({ error: "Missing Gemini API key" });
 
     const prompt = `
-You are a YouTube SEO expert. Based on the following video title and description,
-generate 10 optimized YouTube tags in JSON format.
-
-Title: ${title}
-Description: ${description}
-
-Response format:
+You are a YouTube SEO expert. Based on this title and description, return 10 optimized tags in JSON format:
 {
   "tags": [
     {"tag": "keyword", "relevance_score": 90, "search_volume": "~10k", "user_interest_percent": 80}
   ]
-}`;
+}
+Title: ${title}
+Description: ${description}
+`;
 
-    // ✅ Gemini API call
-    const r = await axios.post(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
-      { contents: [{ parts: [{ text: prompt }] }] }
-    );
+    const endpoint = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash-latest:generateContent?key=${GEMINI_API_KEY}`;
 
-    // ✅ Extract AI text
-    const rawText =
-      r.data?.candidates?.[0]?.content?.parts?.[0]?.text ||
-      "No response from Gemini";
+    const r = await axios.post(endpoint, {
+      contents: [{ role: "user", parts: [{ text: prompt }] }],
+    });
 
-    // ✅ Try parsing JSON safely
+    const text = r.data?.candidates?.[0]?.content?.parts?.[0]?.text || "No output";
     let data;
-    try {
-      data = JSON.parse(rawText);
-    } catch {
-      data = { raw: rawText };
-    }
+    try { data = JSON.parse(text); } catch { data = { raw: text }; }
 
     res.json(data);
-  } catch (error) {
-    console.error("Gemini Error:", error.response?.data || error.message);
+  } catch (err) {
+    console.error("Gemini Error:", err.response?.data || err.message);
     res.status(500).json({
       error: "Gemini API request failed",
-      details: error.response?.data || error.message,
+      details: err.response?.data || err.message,
     });
   }
 });
