@@ -1,70 +1,341 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>YouTube Info Fetcher</title>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>YouTube → Tag Generator</title>
 <style>
-  body { font-family: Arial, sans-serif; background: #0f0f0f; color: #fff; text-align: center; padding: 20px; }
-  input, button { width: 90%; max-width: 500px; padding: 10px; margin: 10px; border-radius: 8px; border: none; }
-  input { background: #222; color: #fff; }
-  button { background: #ff0000; color: white; font-weight: bold; cursor: pointer; }
-  button:hover { background: #e60000; }
-  .card { background: #1a1a1a; padding: 20px; margin-top: 20px; border-radius: 10px; }
-  .tag { background: #333; display: inline-block; margin: 5px; padding: 8px 12px; border-radius: 20px; }
+  :root{--bg:#0e1117;--card:#1a1f2b;--muted:#9aa3b2;--accent:#ff5f5f}
+  *{box-sizing:border-box;font-family:Inter,system-ui,Segoe UI,Roboto,"Poppins",sans-serif}
+  body{margin:0;background:var(--bg);color:#fff;display:flex;flex-direction:column;align-items:center;min-height:100vh;padding:16px}
+  header{width:100%;max-width:1100px;display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px}
+  h1{font-size:18px;color:var(--accent);margin:0}
+  .nav{display:flex;gap:8px}
+  .nav button{background:transparent;border:1px solid #222;color:#fff;padding:8px 10px;border-radius:8px;cursor:pointer}
+  .container{width:100%;max-width:1100px;display:flex;gap:16px}
+  .panel{background:var(--card);padding:14px;border-radius:12px;flex:1;box-shadow:0 6px 18px rgba(0,0,0,0.5)}
+  .hidden{display:none}
+  input,textarea,select,button{font-size:14px}
+  input,textarea{width:100%;padding:10px;border-radius:8px;border:none;background:#0f1720;color:#fff;margin-top:8px}
+  textarea{min-height:120px;resize:vertical}
+  .row{display:flex;gap:10px;margin-top:10px}
+  .col{flex:1}
+  .btn{background:var(--accent);color:#fff;border:none;padding:10px 12px;border-radius:8px;cursor:pointer}
+  .secondary{background:#223044;border:0;padding:9px 10px}
+  .small{padding:6px 8px;font-size:13px;border-radius:8px}
+  .tagsWrap{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+  .tag{background:#12161b;padding:8px 12px;border-radius:999px;display:inline-flex;align-items:center;gap:8px}
+  .tag button{background:transparent;border:0;color:var(--accent);cursor:pointer;font-weight:600}
+  .topInfo{font-size:13px;color:var(--muted);display:flex;justify-content:space-between;align-items:center;gap:10px}
+  .summary{background:#0f1720;padding:10px;border-radius:8px;margin-top:10px;color:#dfe9ff}
+  @media(max-width:800px){
+    .container{flex-direction:column}
+    header{flex-direction:column;align-items:flex-start;gap:8px}
+  }
 </style>
 </head>
 <body>
+  <header>
+    <h1>🎯 YouTube Tag Tool</h1>
+    <div class="nav">
+      <button onclick="showView('video')" id="btn-video">📥 Video Info</button>
+      <button onclick="showView('tagger')" id="btn-tagger">🏷️ Tag Generator</button>
+    </div>
+  </header>
 
-<h2>🎥 YouTube Video Info Fetcher</h2>
-<p>Paste any YouTube link (short or full):</p>
+  <main class="container">
+    <!-- VIDEO INFO VIEW -->
+    <section id="view-video" class="panel">
+      <div class="topInfo">
+        <div><strong>Paste YouTube link (short/full)</strong></div>
+        <div style="font-size:13px;color:var(--muted)">Supports: youtu.be or youtube.com</div>
+      </div>
 
-<input type="text" id="videoUrl" placeholder="e.g. https://youtu.be/" />
-<button onclick="fetchInfo()">Fetch Video Info</button>
+      <input id="videoUrl" placeholder="e.g. https://youtu.be/Ubdi8l0sQ8c?si=..." />
+      <div class="row">
+        <button class="btn col" onclick="fetchInfo()">🔎 Fetch Video Info</button>
+        <button class="secondary small" onclick="clearVideoInputs()">Clear</button>
+      </div>
 
-<div id="output"></div>
+      <div class="summary" id="videoSummary" style="display:none">
+        <div><strong id="vtitle">Title will appear here</strong></div>
+        <div id="vdesc" style="margin-top:6px;font-size:13px;color:var(--muted);max-height:120px;overflow:auto"></div>
+        <div style="margin-top:8px;display:flex;gap:8px">
+          <button class="btn" onclick="goToTaggerWithFetched()">➡ Generate Tags for this</button>
+          <button class="secondary" onclick="copyTitle()">Copy Title</button>
+        </div>
+      </div>
+
+      <p style="margin-top:12px;color:var(--muted);font-size:13px">Or manually enter title & description then switch to Tag Generator:</p>
+      <input id="manualTitle" placeholder="(Optional) Override title here" />
+      <textarea id="manualDesc" placeholder="(Optional) Override description here"></textarea>
+      <div style="margin-top:10px">
+        <button class="small secondary" onclick="prefillToTagger()">Use these on Tag Generator →</button>
+      </div>
+    </section>
+
+    <!-- TAG GENERATOR VIEW -->
+    <section id="view-tagger" class="panel hidden">
+      <div class="topInfo">
+        <div><strong>Tag Generator</strong></div>
+        <div style="font-size:13px;color:var(--muted)">Fetch from video or paste title & description</div>
+      </div>
+
+      <div style="margin-top:8px">
+        <input id="tg_videoUrl" placeholder="(Optional) Paste YouTube link then click Fetch from video" />
+        <div class="row">
+          <button class="secondary col" onclick="fetchInfoForTagger()">Fetch from video</button>
+          <button class="secondary small" onclick="clearTaggerInputs()">Clear</button>
+        </div>
+      </div>
+
+      <input id="tg_title" placeholder="Video title for tag generation" />
+      <textarea id="tg_desc" placeholder="Video description for tag generation"></textarea>
+
+      <div class="row" style="margin-top:10px">
+        <button class="btn col" onclick="generateTags()">🏷️ Generate Tags (AI)</button>
+        <button class="secondary small" onclick="copyAllTags()">📋 Copy All</button>
+      </div>
+
+      <div class="topInfo" style="margin-top:12px">
+        <div id="charCount">0 chars</div>
+        <div id="status" style="color:var(--muted)">Ready</div>
+      </div>
+
+      <div id="tagsList" class="tagsWrap" style="margin-top:12px"></div>
+
+      <div style="margin-top:12px">
+        <details style="color:var(--muted)">
+          <summary style="cursor:pointer">History (local)</summary>
+          <div id="historyArea" style="margin-top:8px"></div>
+        </details>
+      </div>
+    </section>
+  </main>
 
 <script>
-const API_KEY = "AIzaSyA421K1R9ZNr0zK08-MPAxgegtsAlU7yN4";
+/* ---------- CONFIG: put your YouTube API key here ---------- */
+const YOUTUBE_API_KEY = "AIzaSyA421K1R9ZNr0zK08-MPAxgegtsAlU7yN4";
+/* ----------------------------------------------------------- */
 
-// Extract YouTube video ID from any type of link
-function extractVideoId(url) {
-  const regex = /(?:v=|\/)([0-9A-Za-z_-]{11})/;
-  const match = url.match(regex);
-  return match ? match[1] : null;
+function showView(name){
+  document.getElementById('view-video').classList.toggle('hidden', name !== 'video');
+  document.getElementById('view-tagger').classList.toggle('hidden', name !== 'tagger');
+  document.getElementById('btn-video').disabled = (name === 'video');
+  document.getElementById('btn-tagger').disabled = (name === 'tagger');
+}
+showView('video'); // default
+
+/* ---------- helpers ---------- */
+function extractVideoId(url){
+  if(!url) return null;
+  // support multiple formats incl query params like ?si=...
+  const patterns = [
+    /(?:v=|\/)([0-9A-Za-z_-]{11})/,        // normal watch?v= or /<id>
+    /youtu\.be\/([0-9A-Za-z_-]{11})/       // short link
+  ];
+  for(const r of patterns){
+    const m = url.match(r);
+    if(m) return m[1];
+  }
+  return null;
 }
 
-async function fetchInfo() {
-  const inputUrl = document.getElementById("videoUrl").value.trim();
-  const videoId = extractVideoId(inputUrl);
-
-  if (!videoId) {
-    alert("❌ Invalid YouTube link!");
-    return;
+/* ---------- VIDEO INFO (VIEW) ---------- */
+async function fetchInfo(){
+  const url = document.getElementById('videoUrl').value.trim();
+  const id = extractVideoId(url);
+  if(!id) return alert('Invalid YouTube link! Use youtu.be or youtube.com/watch?v=');
+  document.getElementById('videoSummary').style.display = 'none';
+  try{
+    const api = `https://www.googleapis.com/youtube/v3/videos?part=snippet&id=${id}&key=${YOUTUBE_API_KEY}`;
+    const r = await fetch(api);
+    const j = await r.json();
+    if(!j.items || !j.items.length) return alert('Video not found or invalid API key');
+    const s = j.items[0].snippet;
+    document.getElementById('vtitle').innerText = s.title;
+    document.getElementById('vdesc').innerText = s.description || '(no description)';
+    document.getElementById('videoSummary').style.display = 'block';
+    // prefill manual fields as well
+    document.getElementById('manualTitle').value = s.title;
+    document.getElementById('manualDesc').value = s.description || '';
+  }catch(e){
+    alert('Fetch failed: ' + e.message);
   }
+}
 
-  const apiUrl = `https://www.googleapis.com/youtube/v3/videos?part=snippet&id=${videoId}&key=${API_KEY}`;
-  const res = await fetch(apiUrl);
-  const data = await res.json();
+function clearVideoInputs(){
+  document.getElementById('videoUrl').value = '';
+  document.getElementById('manualTitle').value = '';
+  document.getElementById('manualDesc').value = '';
+  document.getElementById('videoSummary').style.display = 'none';
+}
 
-  if (!data.items || data.items.length === 0) {
-    alert("⚠️ Video not found!");
-    return;
+/* ---------- Go to Tagger with fetched data ---------- */
+function goToTaggerWithFetched(){
+  const title = document.getElementById('vtitle').innerText || '';
+  const desc = document.getElementById('vdesc').innerText || '';
+  document.getElementById('tg_title').value = title;
+  document.getElementById('tg_desc').value = desc;
+  showView('tagger');
+}
+
+/* ---------- Prefill to tagger from manual inputs ---------- */
+function prefillToTagger(){
+  const title = document.getElementById('manualTitle').value.trim();
+  const desc = document.getElementById('manualDesc').value.trim();
+  document.getElementById('tg_title').value = title;
+  document.getElementById('tg_desc').value = desc;
+  showView('tagger');
+}
+
+/* ---------- TAGGER: fetch from video (within tagger view) ---------- */
+async function fetchInfoForTagger(){
+  const url = document.getElementById('tg_videoUrl').value.trim();
+  const id = extractVideoId(url);
+  if(!id) return alert('Invalid YouTube link!');
+  document.getElementById('status').innerText = 'Fetching video info...';
+  try{
+    const api = `https://www.googleapis.com/youtube/v3/videos?part=snippet&id=${id}&key=${YOUTUBE_API_KEY}`;
+    const r = await fetch(api);
+    const j = await r.json();
+    if(!j.items || !j.items.length) { alert('Video not found'); document.getElementById('status').innerText='Ready'; return; }
+    const s = j.items[0].snippet;
+    document.getElementById('tg_title').value = s.title;
+    document.getElementById('tg_desc').value = s.description || '';
+    document.getElementById('status').innerText = 'Video loaded';
+  }catch(e){
+    alert('Fetch failed: ' + e.message);
+    document.getElementById('status').innerText = 'Ready';
   }
+}
 
-  const snippet = data.items[0].snippet;
-  document.getElementById("output").innerHTML = `
-    <div class="card">
-      <h3>📌 ${snippet.title}</h3>
-      <p>${snippet.description.substring(0, 300)}...</p>
-      <h4>🕵️‍♂️ Suggested Tags:</h4>
-      <div id="tags">
-        ${snippet.tags ? snippet.tags.map(tag => `<span class='tag'>${tag}</span>`).join('') : "No tags available"}
+/* ---------- Generate tags (call backend /api/analyze) ---------- */
+async function generateTags(){
+  const title = document.getElementById('tg_title').value.trim();
+  const desc  = document.getElementById('tg_desc').value.trim();
+  if(!title){ alert('Please provide a title'); return; }
+  document.getElementById('status').innerText = 'Generating tags...';
+  document.getElementById('tagsList').innerHTML = '';
+  try{
+    const res = await fetch('/api/analyze', {
+      method:'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ title, description: desc })
+    });
+    const data = await res.json();
+    if(data.error){ alert('AI error: ' + JSON.stringify(data.error)); document.getElementById('status').innerText='Ready'; return; }
+
+    // handle if AI returned raw text inside data.raw or wrapped in JSON block
+    let tags = [];
+    if(Array.isArray(data.tags)) tags = data.tags.map(t => typeof t === 'string' ? t : t.tag || '');
+    else if(data.raw){
+      // try extract JSON inside raw
+      const txt = (typeof data.raw === 'string') ? data.raw : JSON.stringify(data.raw);
+      const m = txt.match(/```json([\s\S]*?)```/) || txt.match(/\{[\s\S]*\}/);
+      if(m){
+        try{ const parsed = JSON.parse(m[0]); if(parsed.tags) tags = parsed.tags.map(t => t.tag || ''); } catch(e){}
+      }
+    }
+
+    // fallback: if not parsed, try search for simple lines
+    if(tags.length === 0 && data.raw && typeof data.raw === 'string'){
+      const lines = data.raw.split(/[\r\n]+/).map(s => s.trim()).filter(Boolean);
+      for(const l of lines){
+        if(l.length > 1 && l.split(' ').length < 8 && tags.length < 30){ // heuristic
+          tags.push(l.replace(/^[-•\d.\s]+/,''));
+        }
+      }
+    }
+
+    // show tags
+    if(tags.length === 0) {
+      document.getElementById('tagsList').innerHTML = '<div style="color:var(--muted)">No tags parsed from AI response.</div>';
+    } else {
+      saveToHistory(title, tags);
+      renderTags(tags);
+    }
+    document.getElementById('charCount').innerText = (tags.join(', ').length) + ' chars';
+    document.getElementById('status').innerText = 'Done';
+  }catch(e){
+    alert('Request failed: ' + e.message);
+    document.getElementById('status').innerText = 'Ready';
+  }
+}
+
+/* ---------- render tags UI ---------- */
+function renderTags(tags){
+  const wrap = document.getElementById('tagsList');
+  wrap.innerHTML = tags.map(t => `
+    <div class="tag" title="${t}">
+      <span style="max-width:240px;display:inline-block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${t}</span>
+      <button onclick="copySingle('${escapeForJS(t)}')">Copy</button>
+    </div>
+  `).join('');
+}
+
+/* ---------- copy helpers ---------- */
+function escapeForJS(s){ return s.replace(/'/g, "\\'").replace(/"/g,'\\"'); }
+function copySingle(tag){
+  navigator.clipboard.writeText(tag).then(()=>alert('Copied: ' + tag));
+}
+function copyAllTags(){
+  const wrap = document.getElementById('tagsList');
+  const texts = Array.from(wrap.querySelectorAll('.tag span')).map(el => el.innerText);
+  if(texts.length === 0) return alert('No tags to copy');
+  navigator.clipboard.writeText(texts.join(', ')).then(()=>alert('All tags copied'));
+}
+
+/* ---------- history (localStorage) ---------- */
+function loadHistory(){
+  const hist = JSON.parse(localStorage.getItem('yt_tag_history_v1') || '[]');
+  const area = document.getElementById('historyArea');
+  if(!hist.length){ area.innerHTML = '<div style="color:var(--muted)">No history</div>'; return; }
+  area.innerHTML = hist.map((h,idx)=>`
+    <div style="margin-bottom:8px">
+      <div style="font-weight:600">${h.title}</div>
+      <div style="font-size:13px;color:var(--muted);margin:6px 0">Tags: ${h.tags.slice(0,6).join(', ')}${h.tags.length>6?'...':''}</div>
+      <div style="display:flex;gap:8px">
+        <button class="small secondary" onclick='loadHistoryItem(${idx})'>Load</button>
+        <button class="small secondary" onclick='deleteHistoryItem(${idx})'>Delete</button>
       </div>
     </div>
-  `;
+  `).join('');
 }
-</script>
+function saveToHistory(title, tags){
+  let hist = JSON.parse(localStorage.getItem('yt_tag_history_v1') || '[]');
+  hist.unshift({ title, tags, ts: Date.now() });
+  hist = hist.slice(0, 8);
+  localStorage.setItem('yt_tag_history_v1', JSON.stringify(hist));
+  loadHistory();
+}
+function loadHistoryItem(i){
+  const hist = JSON.parse(localStorage.getItem('yt_tag_history_v1') || '[]');
+  if(!hist[i]) return;
+  document.getElementById('tg_title').value = hist[i].title;
+  document.getElementById('tg_desc').value = '';
+  renderTags(hist[i].tags);
+  showView('tagger');
+}
+function deleteHistoryItem(i){
+  let hist = JSON.parse(localStorage.getItem('yt_tag_history_v1') || '[]');
+  hist.splice(i,1);
+  localStorage.setItem('yt_tag_history_v1', JSON.stringify(hist));
+  loadHistory();
+}
 
+/* ---------- utilities ---------- */
+function clearTaggerInputs(){
+  document.getElementById('tg_videoUrl').value = '';
+  document.getElementById('tg_title').value = '';
+  document.getElementById('tg_desc').value = '';
+  document.getElementById('tagsList').innerHTML = '';
+  document.getElementById('status').innerText = 'Ready';
+  document.getElementById('charCount').innerText = '0 chars';
+}
+
+/* ---------- init ---------- */
+loadHistory();
+</script>
 </body>
 </html>
