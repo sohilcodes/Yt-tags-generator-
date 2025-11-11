@@ -1,152 +1,70 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>🎯 YouTube Tag Generator (Gemini 2.0 Flash)</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>YouTube Info Fetcher</title>
 <style>
-  *{box-sizing:border-box;font-family:"Poppins",sans-serif;}
-  body{background:#0e1117;color:#fff;margin:0;padding:0;display:flex;flex-direction:column;align-items:center;min-height:100vh;}
-  h1{text-align:center;color:#ff5f5f;margin:20px 10px;}
-  .container{display:flex;flex-wrap:wrap;justify-content:center;gap:20px;width:95%;max-width:1100px;}
-  .box{background:#1a1f2b;padding:15px;border-radius:12px;flex:1 1 450px;min-height:350px;box-shadow:0 0 10px #0003;}
-  textarea,input{width:100%;padding:10px;margin-top:10px;border:none;border-radius:8px;background:#0e1117;color:#fff;resize:vertical;}
-  button{width:100%;margin-top:15px;padding:12px;background:#ff5f5f;color:#fff;font-size:16px;border:none;border-radius:8px;cursor:pointer;transition:0.2s;}
-  button:hover{background:#ff7373;}
-  .history{margin-top:15px;}
-  .history button{background:#252a36;padding:6px 10px;margin:3px;border:none;border-radius:6px;color:#fff;cursor:pointer;}
-  #tagsArea{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;background:#0e1117;border-radius:8px;padding:10px;min-height:100px;}
-  .tag{background:#21252e;color:#fff;border-radius:8px;padding:8px 10px;font-size:14px;display:flex;align-items:center;gap:8px;}
-  .tag button{background:none;border:none;color:#ff7e7e;font-size:16px;cursor:pointer;padding:0;}
-  .topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;font-size:13px;color:#aaa;}
-  .copy-all{background:#ff5f5f;border:none;padding:6px 12px;border-radius:8px;color:#fff;font-size:13px;cursor:pointer;}
-  @media(max-width:768px){.container{flex-direction:column;}}
+  body { font-family: Arial, sans-serif; background: #0f0f0f; color: #fff; text-align: center; padding: 20px; }
+  input, button { width: 90%; max-width: 500px; padding: 10px; margin: 10px; border-radius: 8px; border: none; }
+  input { background: #222; color: #fff; }
+  button { background: #ff0000; color: white; font-weight: bold; cursor: pointer; }
+  button:hover { background: #e60000; }
+  .card { background: #1a1a1a; padding: 20px; margin-top: 20px; border-radius: 10px; }
+  .tag { background: #333; display: inline-block; margin: 5px; padding: 8px 12px; border-radius: 20px; }
 </style>
 </head>
 <body>
-  <h1>🎯 YouTube Tag Generator</h1>
-  <div class="container">
-    <!-- Input Box -->
-    <div class="box">
-      <h3>🧠 Enter Video Details or Paste YouTube Link</h3>
-      <input id="ytlink" placeholder="Paste YouTube video link (optional)">
-      <button onclick="fetchInfo()">Fetch Video Info</button>
-      <input id="title" placeholder="Enter video title">
-      <textarea id="desc" rows="5" placeholder="Enter video description..."></textarea>
-      <button onclick="analyze()">Generate Tags</button>
 
-      <div class="history">
-        <h4>🕒 Recent Searches</h4>
-        <div id="historyList"></div>
-      </div>
-    </div>
+<h2>🎥 YouTube Video Info Fetcher</h2>
+<p>Paste any YouTube link (short or full):</p>
 
-    <!-- Output Box -->
-    <div class="box">
-      <h3>📊 Generated Tags</h3>
-      <div id="out">
-        <p style="color:#bbb;">Tags will appear here...</p>
-      </div>
-    </div>
-  </div>
+<input type="text" id="videoUrl" placeholder="e.g. https://youtu.be/" />
+<button onclick="fetchInfo()">Fetch Video Info</button>
+
+<div id="output"></div>
 
 <script>
-const API_KEY = "AIzaSyA421K1R9ZNr0zK08-MPAxgegtsAlU7yN4"; // ⚠️ apna YouTube API key yaha daal (free)
-const historyList = document.getElementById("historyList");
-const out = document.getElementById("out");
+const API_KEY = "AIzaSyA421K1R9ZNr0zK08-MPAxgegtsAlU7yN4";
 
-// Load local history on startup
-window.onload = () => {
-  const hist = JSON.parse(localStorage.getItem("tagHistory") || "[]");
-  updateHistory(hist);
-};
+// Extract YouTube video ID from any type of link
+function extractVideoId(url) {
+  const regex = /(?:v=|\/)([0-9A-Za-z_-]{11})/;
+  const match = url.match(regex);
+  return match ? match[1] : null;
+}
 
-// Fetch video info from YouTube link
 async function fetchInfo() {
-  const link = document.getElementById("ytlink").value.trim();
-  const match = link.match(/v=([a-zA-Z0-9_-]{11})/);
-  if (!match) return alert("⚠️ Invalid YouTube link!");
+  const inputUrl = document.getElementById("videoUrl").value.trim();
+  const videoId = extractVideoId(inputUrl);
 
-  const id = match[1];
-  const url = `https://www.googleapis.com/youtube/v3/videos?id=${id}&part=snippet&key=${API_KEY}`;
-  try {
-    const r = await fetch(url);
-    const data = await r.json();
-    if (data.items && data.items.length) {
-      const snippet = data.items[0].snippet;
-      document.getElementById("title").value = snippet.title;
-      document.getElementById("desc").value = snippet.description;
-      alert("✅ Video info fetched!");
-    } else alert("❌ Video not found or invalid API key.");
-  } catch (e) {
-    alert("⚠️ Error fetching info: " + e.message);
+  if (!videoId) {
+    alert("❌ Invalid YouTube link!");
+    return;
   }
-}
 
-async function analyze() {
-  const title = document.getElementById("title").value.trim();
-  const desc = document.getElementById("desc").value.trim();
-  if (!title) return alert("⚠️ Please enter a title.");
+  const apiUrl = `https://www.googleapis.com/youtube/v3/videos?part=snippet&id=${videoId}&key=${API_KEY}`;
+  const res = await fetch(apiUrl);
+  const data = await res.json();
 
-  out.innerHTML = "⏳ Generating tags...";
-  try {
-    const res = await fetch("/api/analyze", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title, description: desc })
-    });
-    const data = await res.json();
-    if (data.error) return out.innerHTML = "❌ " + data.error;
-
-    if (data.tags) {
-      const tags = data.tags.map(t => t.tag);
-      const totalChars = tags.join(", ").length;
-      out.innerHTML = `
-        <div class="topbar">
-          <span>${totalChars}/500 Characters</span>
-          <button class="copy-all" onclick="copyAll('${tags.join(', ')}')">📋 Copy All</button>
-        </div>
-        <div id="tagsArea">
-          ${tags.map(tag => `<div class="tag">${tag}<button onclick="removeTag(this)">×</button></div>`).join("")}
-        </div>
-      `;
-      saveHistory(title);
-    } else out.innerHTML = "<p>No tags generated. Try again.</p>";
-  } catch (e) {
-    out.innerHTML = "⚠️ Error: " + e.message;
+  if (!data.items || data.items.length === 0) {
+    alert("⚠️ Video not found!");
+    return;
   }
-}
 
-function copyAll(text) {
-  navigator.clipboard.writeText(text);
-  alert("✅ All tags copied!");
-}
-
-function removeTag(el) {
-  el.parentElement.remove();
-}
-
-// Save search history
-function saveHistory(title) {
-  let hist = JSON.parse(localStorage.getItem("tagHistory") || "[]");
-  if (!hist.includes(title)) hist.unshift(title);
-  hist = hist.slice(0, 5);
-  localStorage.setItem("tagHistory", JSON.stringify(hist));
-  updateHistory(hist);
-}
-
-// Update visible history
-function updateHistory(hist) {
-  historyList.innerHTML = hist.length
-    ? hist.map(h => `<button onclick="loadHistory('${h}')">${h}</button>`).join("")
-    : "<small>No recent searches</small>";
-}
-
-function loadHistory(title) {
-  document.getElementById("title").value = title;
-  document.getElementById("desc").value = "";
-  analyze();
+  const snippet = data.items[0].snippet;
+  document.getElementById("output").innerHTML = `
+    <div class="card">
+      <h3>📌 ${snippet.title}</h3>
+      <p>${snippet.description.substring(0, 300)}...</p>
+      <h4>🕵️‍♂️ Suggested Tags:</h4>
+      <div id="tags">
+        ${snippet.tags ? snippet.tags.map(tag => `<span class='tag'>${tag}</span>`).join('') : "No tags available"}
+      </div>
+    </div>
+  `;
 }
 </script>
+
 </body>
 </html>
