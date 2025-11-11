@@ -3,17 +3,21 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>🎯 YouTube Tag Analyzer (Gemini 2.0 Flash)</title>
+<title>🎯 YouTube Tag Generator (Gemini 2.0 Flash)</title>
 <style>
   * {box-sizing: border-box; font-family: "Poppins", sans-serif;}
   body {
-    background: #0f1720;
+    background: #0e1117;
     color: #fff;
     margin: 0; padding: 0;
     display: flex; flex-direction: column; align-items: center;
     min-height: 100vh;
   }
-  h1 {text-align: center; color: #ff6b6b; margin: 20px 10px;}
+  h1 {
+    text-align: center;
+    color: #ff5f5f;
+    margin: 20px 10px;
+  }
   .container {
     display: flex;
     flex-wrap: wrap;
@@ -23,7 +27,7 @@
     max-width: 1000px;
   }
   .box {
-    background: #1a2639;
+    background: #1a1f2b;
     padding: 15px;
     border-radius: 12px;
     flex: 1 1 450px;
@@ -36,7 +40,7 @@
     margin-top: 10px;
     border: none;
     border-radius: 8px;
-    background: #0f1720;
+    background: #0e1117;
     color: #fff;
     resize: vertical;
   }
@@ -44,7 +48,7 @@
     width: 100%;
     margin-top: 15px;
     padding: 12px;
-    background: #ff6b6b;
+    background: #ff5f5f;
     color: #fff;
     font-size: 16px;
     border: none;
@@ -52,55 +56,73 @@
     cursor: pointer;
     transition: 0.2s;
   }
-  button:hover {background: #ff7e7e;}
-  #result {
+  button:hover {background: #ff7373;}
+  #tagsArea {
     display: flex;
-    flex-direction: column;
-    gap: 10px;
-    overflow-y: auto;
-    max-height: 300px;
-  }
-  .tag-box {
-    background: #16223a;
-    padding: 10px;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 10px;
+    background: #0e1117;
     border-radius: 8px;
+    padding: 10px;
+    min-height: 100px;
+  }
+  .tag {
+    background: #21252e;
+    color: #fff;
+    border-radius: 8px;
+    padding: 8px 10px;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .tag button {
+    background: none;
+    border: none;
+    color: #ff7e7e;
+    font-size: 16px;
+    cursor: pointer;
+    padding: 0;
+  }
+  .topbar {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    flex-wrap: wrap;
-  }
-  .tag-text {font-weight: 500; color: #ffd6d6;}
-  .tag-meta {font-size: 13px; color: #bbb;}
-  .json-box {
-    white-space: pre-wrap;
-    background: #111a2b;
-    border-radius: 8px;
-    padding: 10px;
+    margin-bottom: 8px;
     font-size: 13px;
-    color: #9ef;
+    color: #aaa;
+  }
+  .copy-all {
+    background: #ff5f5f;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 8px;
+    color: #fff;
+    font-size: 13px;
+    cursor: pointer;
   }
   @media (max-width: 768px) {
     .container {flex-direction: column;}
-    .box {min-height: auto;}
   }
 </style>
 </head>
 <body>
-  <h1>🎯 YouTube Tag Analyzer (Gemini 2.0 Flash)</h1>
+  <h1>🎯 YouTube Tag Generator</h1>
   <div class="container">
-    <!-- Left Box -->
+    <!-- Input Box -->
     <div class="box">
       <h3>🧠 Enter Video Details</h3>
       <input id="title" placeholder="Enter video title">
       <textarea id="desc" rows="5" placeholder="Enter video description..."></textarea>
-      <button onclick="analyze()">Analyze</button>
+      <button onclick="analyze()">Generate Tags</button>
     </div>
 
-    <!-- Right Box -->
+    <!-- Output Box -->
     <div class="box">
-      <h3>📊 Analysis Result</h3>
+      <h3>📊 Generated Tags</h3>
       <div id="out">
-        <p style="color:#bbb;">Result will appear here...</p>
+        <p style="color:#bbb;">Tags will appear here...</p>
       </div>
     </div>
   </div>
@@ -111,7 +133,8 @@ async function analyze(){
   const desc=document.getElementById("desc").value.trim();
   const out=document.getElementById("out");
   if(!title){out.innerHTML="<p>⚠️ Please enter a title.</p>";return;}
-  out.innerHTML="⏳ Analyzing with Gemini...";
+  out.innerHTML="⏳ Generating tags...";
+
   try{
     const res=await fetch("/api/analyze",{
       method:"POST",
@@ -122,23 +145,32 @@ async function analyze(){
     if(data.error){out.innerHTML="❌ "+data.error;return;}
 
     if(data.tags){
-      out.innerHTML = `
-        <div style="background:#16223a;padding:10px;border-radius:8px;margin-bottom:10px;">
-          <b>🎬 Title:</b> ${title}<br>
-          <b>📝 Description:</b> ${desc || "(No description)"}<br>
+      const tags=data.tags.map(t=>t.tag);
+      const totalChars=tags.join(", ").length;
+      out.innerHTML=`
+        <div class="topbar">
+          <span>${totalChars}/500 Characters</span>
+          <button class="copy-all" onclick="copyAll('${tags.join(', ')}')">📋 Copy All</button>
         </div>
-      ` + data.tags.map(t => `
-        <div class="tag-box">
-          <div class="tag-text">#${t.tag}</div>
-          <div class="tag-meta">Relevance: ${t.relevance_score}% | Search: ${t.search_volume} | Interest: ${t.user_interest_percent}%</div>
+        <div id="tagsArea">
+          ${tags.map(tag=>`<div class="tag">${tag}<button onclick="removeTag(this)">×</button></div>`).join("")}
         </div>
-      `).join("");
-    } else {
-      out.innerHTML = `<div class="json-box">${JSON.stringify(data.raw || data, null, 2)}</div>`;
+      `;
+    }else{
+      out.innerHTML="<p>No tags generated. Try again.</p>";
     }
   }catch(e){
-    out.innerHTML="⚠️ Server Error: "+e.message;
+    out.innerHTML="⚠️ Error: "+e.message;
   }
+}
+
+function copyAll(text){
+  navigator.clipboard.writeText(text);
+  alert("✅ All tags copied!");
+}
+
+function removeTag(el){
+  el.parentElement.remove();
 }
 </script>
 </body>
