@@ -2,33 +2,140 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>YouTube Tag Analyzer (Gemini 2.0)</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🎯 YouTube Tag Analyzer (Gemini 2.0 Flash)</title>
 <style>
-body{font-family:Poppins,sans-serif;background:#0f1720;color:#fff;max-width:800px;margin:auto;padding:20px}
-h1{text-align:center;color:#ff6b6b}
-textarea,input,button{width:100%;padding:10px;margin-top:10px;border:none;border-radius:8px}
-textarea,input{background:#1a2639;color:#fff}
-button{background:#ff6b6b;color:#fff;cursor:pointer}
-.tag{display:inline-block;background:#1c2d46;padding:5px 10px;margin:4px;border-radius:8px}
+  * {box-sizing: border-box; font-family: "Poppins", sans-serif;}
+  body {
+    background: #0f1720;
+    color: #fff;
+    margin: 0; padding: 0;
+    display: flex; flex-direction: column; align-items: center;
+    min-height: 100vh;
+  }
+  h1 {text-align: center; color: #ff6b6b; margin: 20px 10px;}
+  .container {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 20px;
+    width: 95%;
+    max-width: 1000px;
+  }
+  .box {
+    background: #1a2639;
+    padding: 15px;
+    border-radius: 12px;
+    flex: 1 1 450px;
+    min-height: 350px;
+    box-shadow: 0 0 10px #0003;
+  }
+  textarea, input {
+    width: 100%;
+    padding: 10px;
+    margin-top: 10px;
+    border: none;
+    border-radius: 8px;
+    background: #0f1720;
+    color: #fff;
+    resize: vertical;
+  }
+  button {
+    width: 100%;
+    margin-top: 15px;
+    padding: 12px;
+    background: #ff6b6b;
+    color: #fff;
+    font-size: 16px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: 0.2s;
+  }
+  button:hover {background: #ff7e7e;}
+  #result {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    overflow-y: auto;
+    max-height: 300px;
+  }
+  .tag-box {
+    background: #16223a;
+    padding: 10px;
+    border-radius: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .tag-text {font-weight: 500; color: #ffd6d6;}
+  .tag-meta {font-size: 13px; color: #bbb;}
+  .json-box {
+    white-space: pre-wrap;
+    background: #111a2b;
+    border-radius: 8px;
+    padding: 10px;
+    font-size: 13px;
+    color: #9ef;
+  }
+  @media (max-width: 768px) {
+    .container {flex-direction: column;}
+    .box {min-height: auto;}
+  }
 </style>
 </head>
 <body>
-<h1>🎯 YouTube Tag Analyzer (Gemini 2.0 Flash)</h1>
-<input id="title" placeholder="Enter video title">
-<textarea id="desc" rows="5" placeholder="Enter video description..."></textarea>
-<button onclick="analyze()">Analyze</button>
-<div id="out"></div>
+  <h1>🎯 YouTube Tag Analyzer (Gemini 2.0 Flash)</h1>
+  <div class="container">
+    <!-- Left Box -->
+    <div class="box">
+      <h3>🧠 Enter Video Details</h3>
+      <input id="title" placeholder="Enter video title">
+      <textarea id="desc" rows="5" placeholder="Enter video description..."></textarea>
+      <button onclick="analyze()">Analyze</button>
+    </div>
+
+    <!-- Right Box -->
+    <div class="box">
+      <h3>📊 Analysis Result</h3>
+      <div id="out">
+        <p style="color:#bbb;">Result will appear here...</p>
+      </div>
+    </div>
+  </div>
+
 <script>
 async function analyze(){
-  const title=document.getElementById("title").value;
-  const desc=document.getElementById("desc").value;
+  const title=document.getElementById("title").value.trim();
+  const desc=document.getElementById("desc").value.trim();
   const out=document.getElementById("out");
-  out.innerHTML="⏳ Analyzing...";
+  if(!title){out.innerHTML="<p>⚠️ Please enter a title.</p>";return;}
+  out.innerHTML="⏳ Analyzing with Gemini...";
   try{
-    const res=await fetch("/api/analyze",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({title,description:desc})});
+    const res=await fetch("/api/analyze",{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({title,description:desc})
+    });
     const data=await res.json();
     if(data.error){out.innerHTML="❌ "+data.error;return;}
-    out.innerHTML=data.tags ? data.tags.map(t=>`<div class='tag'>${t.tag} (${t.relevance_score}%)</div>`).join("") : `<pre>${JSON.stringify(data,null,2)}</pre>`;
+
+    if(data.tags){
+      out.innerHTML = `
+        <div style="background:#16223a;padding:10px;border-radius:8px;margin-bottom:10px;">
+          <b>🎬 Title:</b> ${title}<br>
+          <b>📝 Description:</b> ${desc || "(No description)"}<br>
+        </div>
+      ` + data.tags.map(t => `
+        <div class="tag-box">
+          <div class="tag-text">#${t.tag}</div>
+          <div class="tag-meta">Relevance: ${t.relevance_score}% | Search: ${t.search_volume} | Interest: ${t.user_interest_percent}%</div>
+        </div>
+      `).join("");
+    } else {
+      out.innerHTML = `<div class="json-box">${JSON.stringify(data.raw || data, null, 2)}</div>`;
+    }
   }catch(e){
     out.innerHTML="⚠️ Server Error: "+e.message;
   }
